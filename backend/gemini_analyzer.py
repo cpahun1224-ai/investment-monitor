@@ -5,7 +5,7 @@ Google Gemini API 기반 투자전략 분석 모듈
 import os
 import json
 import re
-from dotenv import load_dotenv
+from dotenv import load_dotenv(override=False)
 from google import genai
 from google.genai import types
 
