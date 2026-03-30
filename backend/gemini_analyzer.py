@@ -5,11 +5,11 @@ Google Gemini API 기반 투자전략 분석 모듈
 import os
 import json
 import re
-from dotenv import load_dotenv(override=False)
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-load_dotenv()
+load_dotenv(override=False)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 MODEL_NAME = "gemini-2.0-flash"
