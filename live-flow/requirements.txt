@@ -2,3 +2,5 @@ fastapi>=0.110
 uvicorn>=0.29
 pykrx==1.2.9
 tzdata
+sqlalchemy>=2.0
+psycopg[binary]>=3.1

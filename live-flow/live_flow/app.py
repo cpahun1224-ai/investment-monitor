@@ -1,7 +1,8 @@
 """30초 수급 대시보드 서버.
 
 실행(live-flow 폴더에서):  python -m uvicorn live_flow.app:app --host 0.0.0.0 --port 8501
-설정: live-flow/.env  (KRX_ID, KRX_PW, LIVE_FLOW_PASSWORD)
+설정: 환경변수 또는 live-flow/.env  (KRX_ID, KRX_PW, LIVE_FLOW_PASSWORD, DATABASE_URL)
+Render 무료 서버는 15분간 요청이 없으면 잠들므로, 외부 깨우기 서비스가 장중에 /healthz 를 호출한다.
 """
 from __future__ import annotations
 
@@ -41,7 +42,8 @@ def load_env(path: Path = ROOT / ".env") -> None:
 
 
 load_env()
-store = Store(os.getenv("LIVE_FLOW_DB", str(ROOT / "live_flow.db")))
+# 운영(Render): DATABASE_URL = Neon Postgres 주소. 로컬: live_flow.db 파일
+store = Store(os.getenv("DATABASE_URL") or os.getenv("LIVE_FLOW_DB") or str(ROOT / "live_flow.db"))
 status = {"last_ok": None, "last_error": None, "last_error_at": None, "collecting": False}
 
 
@@ -99,6 +101,12 @@ def _market(m: str) -> str:
     if m not in MARKETS:
         raise HTTPException(400, "market은 KOSPI 또는 KOSDAQ")
     return m
+
+
+@app.get("/healthz")
+def healthz():
+    """깨우기(cron-job.org)·상태 확인용. 비밀번호 없이 최소 정보만."""
+    return {"ok": True, "collecting": status["collecting"], "last_ok": status["last_ok"]}
 
 
 @app.get("/", dependencies=[Depends(auth)])

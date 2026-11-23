@@ -1,0 +1,24 @@
+# Render Blueprint — 30초 수급 대시보드(live-flow), 무료 플랜
+# Render 대시보드 → New → Blueprint → 이 저장소 선택. 비밀 값은 처음 배포할 때 화면에서 입력.
+services:
+  - type: web
+    name: live-flow
+    runtime: python
+    plan: free
+    region: singapore          # 한국에서 가장 가까운 Render 지역
+    rootDir: live-flow
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn live_flow.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: KRX_ID
+        sync: false            # KRX 아이디
+      - key: KRX_PW
+        sync: false            # KRX 비밀번호
+      - key: DATABASE_URL
+        sync: false            # Neon 연결 주소 (postgresql://...)
+      - key: LIVE_FLOW_PASSWORD
+        sync: false            # 대시보드 접속 비밀번호

@@ -57,3 +57,27 @@ def test_collect_window():
     assert is_collect_time(datetime(2026, 11, 23, 15, 35, tzinfo=KST))
     assert not is_collect_time(datetime(2026, 11, 23, 15, 36, tzinfo=KST))
     assert not is_collect_time(datetime(2026, 11, 22, 10, 0, tzinfo=KST))  # 일요일
+
+
+def test_store_on_postgres_if_available():
+    """LIVE_FLOW_TEST_PG에 Postgres 주소가 있으면 같은 저장 코드를 Postgres로 검증."""
+    import os
+    import pytest
+
+    url = os.getenv("LIVE_FLOW_TEST_PG")
+    if not url:
+        pytest.skip("Postgres 테스트 주소 없음")
+    from live_flow.db import Store
+    from sqlalchemy import text
+
+    st = Store(url)
+    with st.engine.begin() as c:
+        c.execute(text("DELETE FROM snapshots"))
+    st.add(Snapshot("2026-11-20T15:35:00+09:00", "KOSPI", 4869.96, -10956.0, -9330.2, 15214.4, 0.0))
+    st.add(Snapshot("2026-11-23T13:40:00+09:00", "KOSPI", 4705.4, -2666.0, 2733.0, -3243.0, 0.0))
+    st.add(Snapshot("2026-11-23T13:40:30+09:00", "KOSPI", 4702.1, -2666.0, 2733.0, -3243.0, 0.0))
+    st.add(Snapshot("2026-11-23T13:40:30+09:00", "KOSPI", 4702.2, -2650.0, 2733.0, -3243.0, 0.0))  # 덮어쓰기
+    assert [r["idx"] for r in st.day("KOSPI", "2026-11-23")] == [4705.4, 4702.2]
+    assert st.days("KOSPI") == ["2026-11-23", "2026-11-20"]
+    assert [r["ts"][:10] for r in st.daily_close("KOSPI")] == ["2026-11-20", "2026-11-23"]
+    assert "13:40:30" in st.csv("KOSPI", "2026-11-23") and st.ping()

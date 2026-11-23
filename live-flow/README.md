@@ -1,11 +1,26 @@
 # 30초 수급 대시보드 (live-flow) — 2단계
 
 장중(평일 09:00~15:35) **30초마다** KRX에서 코스피·코스닥 지수와 **외국인·기관·개인 현물 누적 순매수**를 받아
-사내 대시보드처럼 선 그래프로 보여 줍니다. 집 PC에서 돌리고, 휴대폰에서는 **Tailscale**로 접속합니다.
+사내 대시보드처럼 선 그래프로 보여 줍니다.
+
+- **웹(추천, 무료):** Render 무료 서버 + Neon 무료 DB + cron-job.org 깨우기 → `https://live-flow-xxxx.onrender.com`
+- **집 PC:** 아래 '집 PC에서 실행' 참고
+
+## 웹으로 운영 (Render + Neon + cron-job.org, 모두 무료)
+
+1. **Neon**(neon.tech) GitHub로 가입 → 프로젝트 생성(지역: Singapore) → Connection string(`postgresql://...`) 복사
+2. **Render**(render.com) GitHub로 가입 → New → **Blueprint** → `investment-monitor` 선택 → 저장소의 `render.yaml`을 읽음
+   → 입력 칸에 `KRX_ID`, `KRX_PW`, `DATABASE_URL`(Neon 주소), `LIVE_FLOW_PASSWORD` 입력 → Apply
+3. 배포가 끝나면 주소 `https://live-flow-xxxx.onrender.com` 확인 → 열어서 비밀번호로 로그인
+4. **cron-job.org** 가입 → Create cronjob → URL `https://live-flow-xxxx.onrender.com/healthz`,
+   평일 08:50~15:40, **10분마다** (Render 무료 서버는 15분간 요청이 없으면 잠들기 때문)
+
+주의: Render 무료 서버는 재시작 때 1~2분 수집이 빌 수 있습니다. 기록은 Neon에 남아 사라지지 않습니다.
+
 
 > 조회 전용입니다. 주문 기능·계좌 연결이 없습니다. 장중 화면은 시나리오 작성용이고, 판단은 15:30 종가 확정 후에 합니다(05 문서 E절).
 
-## 처음 설치 (집 PC, 한 번)
+## 집 PC에서 실행 (선택)
 
 1. GitHub 저장소 → 초록 **Code → Download ZIP** → 압축을 `C:\Users\<이름>\live-flow-app` 같은 곳에 풉니다.
    그 안의 `live-flow` 폴더를 씁니다.
