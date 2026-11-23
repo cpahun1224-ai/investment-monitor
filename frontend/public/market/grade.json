@@ -1,0 +1,16 @@
+{
+ "status": "no_data",
+ "data_quality": {
+  "rows": 0,
+  "ma60_history_ok": false,
+  "missing_foreign_days": [],
+  "manual_days": []
+ },
+ "collector": {
+  "source": "pykrx",
+  "ok": false,
+  "rows": 0,
+  "error": "KeyError: '지수명'"
+ },
+ "generated_at": "2026-11-23T13:24:33+09:00"
+}
