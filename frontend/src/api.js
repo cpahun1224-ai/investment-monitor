@@ -30,5 +30,11 @@ export const runAnalysis = (ticker) => api.post(`/analysis/${ticker}`).then(r =>
 export const runBatchAnalysis = () => api.post('/analysis/batch').then(r => r.data)
 
 // 나만의 시장 판독기 (05-A 시장 등급)
-export const getMarketGrade = () => api.get('/market/grade').then(r => r.data)
-export const getMarketHistory = (limit = 60) => api.get('/market/history', { params: { limit } }).then(r => r.data)
+// GitHub Actions가 장 마감 후 만들어 커밋한 정적 파일을 읽는다(백엔드 서버 불필요).
+const fetchStatic = (path) =>
+  fetch(`${path}?t=${Date.now()}`, { cache: 'no-store' }).then(r => {
+    if (!r.ok) throw new Error(`${path} ${r.status}`)
+    return r.json()
+  })
+export const getMarketGrade = () => fetchStatic('/market/grade.json')
+export const getMarketHistory = () => fetchStatic('/market/history.json')

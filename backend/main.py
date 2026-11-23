@@ -10,7 +10,6 @@ from init_data import init_db
 from price_fetcher import fetch_price, fetch_all_prices, is_market_open
 from news_crawler import collect_stock_context
 from gemini_analyzer import analyze_stock
-from market_reader.api import router as market_router, maybe_start_scheduler
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -21,8 +20,6 @@ ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
     "http://localhost:5173,http://127.0.0.1:5173"
 ).split(",")
-
-app.include_router(market_router)  # 나만의 시장 판독기: /api/market/*
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,7 +33,6 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     init_db()
-    maybe_start_scheduler()  # 평일 16:10·18:10 KST 종가 기록 + 등급 판정
 
 
 # ── 포트폴리오 요약 ──────────────────────────────────────────

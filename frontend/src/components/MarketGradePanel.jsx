@@ -47,7 +47,7 @@ export default function MarketGradePanel() {
   const [loading, setLoading] = useState(true)
 
   const fetchData = () =>
-    Promise.all([getMarketGrade(), getMarketHistory(60)])
+    Promise.all([getMarketGrade(), getMarketHistory()])
       .then(([g, h]) => { setSummary(g); setHistory(h); setError(null) })
       .catch(e => setError(e?.message || String(e)))
       .finally(() => setLoading(false))
@@ -57,14 +57,23 @@ export default function MarketGradePanel() {
 
   const card = 'bg-[#1a1d2e] rounded-xl border border-white/5'
 
-  if (error) return <div className={`${card} p-5 text-red-300`}>판독기 서버에 연결하지 못했습니다: {error}</div>
+  if (error && !summary) {
+    return (
+      <div className={`${card} p-5 text-gray-300 space-y-2`}>
+        <div className="font-semibold text-white">아직 판정 결과가 없습니다</div>
+        <div className="text-sm text-gray-400">
+          GitHub → Actions → market-reader를 한 번 실행하면 결과 파일이 만들어집니다. ({error})
+        </div>
+      </div>
+    )
+  }
   if (loading && !summary) return <div className={`${card} p-5 text-gray-400`}>불러오는 중…</div>
   if (!summary || summary.status !== 'ok') {
     return (
       <div className={`${card} p-5 text-gray-300 space-y-2`}>
         <div className="font-semibold text-white">아직 기록된 종가가 없습니다</div>
         <div className="text-sm text-gray-400">
-          평일 16:10·18:10에 자동으로 수집합니다. 서버 환경변수 KRX_ID / KRX_PW가 설정돼 있는지 확인해 주세요.
+          평일 16:10·18:10(KST)에 GitHub Actions가 자동으로 수집합니다. 저장소 Secrets에 KRX_ID / KRX_PW가 있는지 확인해 주세요.
         </div>
       </div>
     )
@@ -98,6 +107,13 @@ export default function MarketGradePanel() {
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> 다시 판정
         </button>
       </div>
+
+      {summary.collector?.ok === false && (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
+          ⚠️ 최근 KRX 수집 실패 — 저장된 데이터로 판정했습니다. 최신 종가가 아닐 수 있습니다.
+          <div className="text-xs text-red-300/80 mt-1">{summary.collector.error}</div>
+        </div>
+      )}
 
       {/* CIO 안건 */}
       {summary.cio_agenda?.length > 0 && (
@@ -154,6 +170,8 @@ export default function MarketGradePanel() {
 
       <div className="text-xs text-gray-500">
         {!dq.ma60_history_ok && '⚠️ 60일선 계산용 과거 데이터 부족 · '}
+        {summary.generated_at && `판정 시각 ${summary.generated_at.slice(0, 16).replace('T', ' ')} · `}
+        {dq.manual_days?.length > 0 && `수동 입력일: ${dq.manual_days.join(', ')} · `}
         {dq.missing_foreign_days?.length > 0 && `⚠️ 외국인 수급 미확인: ${dq.missing_foreign_days.join(', ')} · `}
         규칙 판정 보조 도구입니다. 최종 결정은 CIO가 장 마감 후에 합니다.
       </div>
