@@ -81,3 +81,24 @@ def test_store_on_postgres_if_available():
     assert st.days("KOSPI") == ["2026-11-23", "2026-11-20"]
     assert [r["ts"][:10] for r in st.daily_close("KOSPI")] == ["2026-11-20", "2026-11-23"]
     assert "13:40:30" in st.csv("KOSPI", "2026-11-23") and st.ping()
+
+
+def test_committee_summary(tmp_path, monkeypatch):
+    m = make_app(tmp_path, monkeypatch, password="pw")
+    st = m.store
+    st.add(Snapshot("2026-11-20T15:35:00+09:00", "KOSPI", 4869.96, -10956.0, -9330.2, 15214.4, 0.0))
+    pts = [("09:00:00", 4735.0, 500.0), ("09:30:00", 4760.0, 3015.0), ("11:00:00", 4700.0, 200.0),
+           ("13:42:00", 4701.98, -2648.0), ("14:51:00", 4743.07, -798.0)]
+    for t, i, f in pts:
+        st.add(Snapshot(f"2026-11-23T{t}+09:00", "KOSPI", i, f, 2000.0, -3000.0, 0.0))
+    c = TestClient(m.app)
+    r = c.get("/api/committee", params={"date": "2026-11-23"})
+    assert r.status_code == 200  # 비밀번호 없이 열림
+    k = r.json()["markets"]["KOSPI"]
+    assert k["latest"]["외국인"] == -798.0 and k["is_close"] is False
+    assert k["flows"]["외국인"]["intraday_high"]["value"] == 3015.0
+    assert "순매도" in k["flows"]["외국인"]["reversal"]
+    assert k["index_vs_prev_close"]["prev_close"] == 4869.96
+    assert k["orange_cond4_foreign_2d"]["positive"] is False
+    assert "09:30" in k["checkpoints"]
+    assert k["flows"]["외국인"]["chg_60m"] == round(-798.0 - (-2648.0), 1)

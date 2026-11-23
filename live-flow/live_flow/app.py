@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .collector import KST, MARKETS, fetch_snapshot, is_collect_time
 from .db import Store
+from .committee import summarize
 
 ROOT = Path(__file__).resolve().parent.parent
 INTERVAL = int(os.getenv("LIVE_FLOW_INTERVAL", "30"))
@@ -107,6 +108,57 @@ def _market(m: str) -> str:
 def healthz():
     """깨우기(cron-job.org)·상태 확인용. 비밀번호 없이 최소 정보만."""
     return {"ok": True, "collecting": status["collecting"], "last_ok": status["last_ok"]}
+
+
+_prev_cache: dict = {}
+
+
+def prev_close(market: str, day: str) -> Optional[dict]:
+    """전 거래일 마감값. 우리 DB에 있으면 그것, 없으면 KRX 일별 자료로 한 번 받아 둔다."""
+    mine = [r for r in store.daily_close(market, 30) if r["ts"][:10] < day]
+    if mine and mine[-1]["ts"][11:16] >= "15:30":
+        return mine[-1]
+    key = (market, day)
+    if key in _prev_cache:
+        return _prev_cache[key]
+    try:
+        from datetime import date, timedelta
+
+        from pykrx import stock
+
+        d = date.fromisoformat(day)
+        s, e = (d - timedelta(days=14)).strftime("%Y%m%d"), (d - timedelta(days=1)).strftime("%Y%m%d")
+        idx = stock.get_index_ohlcv(s, e, MARKETS[market])
+        fl = stock.get_market_trading_value_by_date(s, e, market)
+        if idx.empty:
+            return None
+        ts = idx.index[-1]
+        row = {"ts": ts.strftime("%Y-%m-%d") + "T15:30:00+09:00", "idx": float(idx.iloc[-1]["종가"]), "foreign_eok": None}
+        if ts in fl.index:
+            row["foreign_eok"] = round(float(fl.loc[ts]["외국인합계"]) / 1e8, 1)
+        _prev_cache[key] = row
+        return row
+    except Exception as e:  # noqa: BLE001
+        log.warning("전일 값 조회 실패: %s", e)
+        return None
+
+
+@app.get("/api/committee")
+def api_committee(date: Optional[str] = None):
+    """투자위원회용 요약(공개). KRX 공개 시장 데이터만 담고 계좌 정보는 없다."""
+    d = date or datetime.now(KST).date().isoformat()
+    return {
+        "date": d,
+        "generated_at": datetime.now(KST).isoformat(timespec="seconds"),
+        "collector": {"collecting": status["collecting"], "last_ok": status["last_ok"],
+                      "last_error": status["last_error"], "last_error_at": status["last_error_at"]},
+        "markets": {m: _market_summary(m, d) for m in MARKETS},
+    }
+
+
+def _market_summary(m: str, d: str) -> dict:
+    rows = store.day(m, d)
+    return summarize(rows, prev_close(m, d) if rows else None, m)
 
 
 @app.get("/", dependencies=[Depends(auth)])
