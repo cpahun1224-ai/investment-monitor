@@ -28,3 +28,7 @@ export const getSellScenario = (ticker) => api.get(`/stocks/${ticker}/sell-scena
 export const getAnalysis = (ticker) => api.get(`/analysis/${ticker}`).then(r => r.data)
 export const runAnalysis = (ticker) => api.post(`/analysis/${ticker}`).then(r => r.data)
 export const runBatchAnalysis = () => api.post('/analysis/batch').then(r => r.data)
+
+// 나만의 시장 판독기 (05-A 시장 등급)
+export const getMarketGrade = () => api.get('/market/grade').then(r => r.data)
+export const getMarketHistory = (limit = 60) => api.get('/market/history', { params: { limit } }).then(r => r.data)

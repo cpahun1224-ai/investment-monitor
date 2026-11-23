@@ -8,3 +8,5 @@ python-dotenv
 requests
 beautifulsoup4
 pdfplumber
+pykrx>=1.2.9
+tzdata
