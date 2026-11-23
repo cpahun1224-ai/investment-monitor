@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>30초 수급 대시보드</title>
+<script src="/static/chart.umd.js"></script>
+<style>
+  :root { --bg:#f4f6f9; --card:#fff; --ink:#1d2330; --sub:#6b7280; --line:#e5e7eb;
+          --idx:#111827; --frgn:#dc2626; --inst:#059669; --indiv:#2563eb; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif; }
+  header { background:#1f2430; color:#fff; padding:12px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; font-weight:700; }
+  .pill { font-size:12px; padding:3px 9px; border-radius:999px; background:#374151; }
+  .pill.on { background:#16a34a; } .pill.err { background:#b91c1c; }
+  main { max-width:1280px; margin:0 auto; padding:14px; display:grid; grid-template-columns:minmax(0,1fr); gap:14px; }
+  .card { background:var(--card); border-radius:12px; padding:14px 16px; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .tab { border:1px solid var(--line); background:#fff; padding:7px 14px; border-radius:8px; cursor:pointer; font-size:14px; }
+  .tab.active { background:#2563eb; color:#fff; border-color:#2563eb; }
+  select, button.btn, a.btn { border:1px solid var(--line); background:#fff; padding:7px 12px; border-radius:8px; font-size:14px; color:var(--ink); text-decoration:none; cursor:pointer; }
+  .kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+  .kpi .l { font-size:12px; color:var(--sub); } .kpi .v { font-size:22px; font-weight:700; margin-top:2px; }
+  .kpi .d { font-size:12px; margin-top:2px; }
+  .up { color:#dc2626; } .dn { color:#2563eb; } .mut { color:var(--sub); }
+  .chartwrap { position:relative; height:420px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+  th, td { padding:7px 8px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--sub); font-weight:600; position:sticky; top:0; background:#fff; }
+  .tablewrap { max-height:420px; overflow:auto; -webkit-overflow-scrolling:touch; }
+  .note { font-size:12px; color:var(--sub); }
+  .err-box { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; border-radius:8px; padding:8px 10px; font-size:13px; display:none; overflow-wrap:anywhere; }
+  @media (max-width:720px) { main { padding:10px; gap:10px; } .spacer { display:none; } select { flex:1 1 150px; min-width:0; } .kpis { grid-template-columns:repeat(2,1fr); } .chartwrap { height:320px; } .kpi .v { font-size:18px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>30초 수급 대시보드</h1>
+  <span id="pill" class="pill">대기</span>
+  <span id="upd" class="note" style="color:#cbd5e1"></span>
+</header>
+<main>
+  <div class="card bar">
+    <button class="tab active" data-m="KOSPI">코스피</button>
+    <button class="tab" data-m="KOSDAQ">코스닥</button>
+    <span class="spacer" style="flex:1"></span>
+    <select id="day"></select>
+    <button class="btn" id="refresh">새로고침</button>
+    <a class="btn" id="csv">엑셀(CSV)</a>
+  </div>
+
+  <div id="err" class="err-box"></div>
+
+  <div class="card kpis">
+    <div class="kpi"><div class="l">지수</div><div class="v" id="k-idx">-</div><div class="d" id="d-idx"></div></div>
+    <div class="kpi"><div class="l" style="color:var(--frgn)">외국인 현물 누적</div><div class="v" id="k-frgn">-</div><div class="d" id="d-frgn"></div></div>
+    <div class="kpi"><div class="l" style="color:var(--inst)">기관 현물 누적</div><div class="v" id="k-inst">-</div><div class="d" id="d-inst"></div></div>
+    <div class="kpi"><div class="l" style="color:var(--indiv)">개인 현물 누적</div><div class="v" id="k-indiv">-</div><div class="d" id="d-indiv"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="bar" style="justify-content:space-between;margin-bottom:6px">
+      <b>지수와 투자자별 누적 순매수</b>
+      <span class="note">왼쪽 축: 지수 · 오른쪽 축: 억원 · 점선: 전일 종가</span>
+    </div>
+    <div class="chartwrap"><canvas id="chart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="bar" style="justify-content:space-between;margin-bottom:6px">
+      <b>수집 이력</b><span class="note" id="cnt"></span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>시각</th><th>지수</th><th>외국인</th><th>Δ30초</th><th>기관</th><th>Δ30초</th><th>개인</th><th>Δ30초</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="note">출처: KRX 정보데이터시스템(투자자별 거래실적·지수). 누적 순매수는 장 시작부터의 합계이며 KRX 갱신 주기에 따라 같은 값이 이어질 수 있습니다.
+    장중 화면은 시나리오 작성용입니다. 매매 판단은 15:30 종가 확정 후에 합니다.</div>
+</main>
+
+<script>
+const S = { market: 'KOSPI', day: null, chart: null, timer: null, prevClose: null };
+const fmt = (x, d = 0) => x == null ? '-' : Number(x).toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d });
+const sgn = (x, d = 0) => x == null ? '-' : (x > 0 ? '+' : '') + fmt(x, d);
+const cls = x => x == null || x === 0 ? 'mut' : (x > 0 ? 'up' : 'dn');
+const today = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+const mins = ts => { const h = +ts.slice(11, 13), m = +ts.slice(14, 16), s = +ts.slice(17, 19); return (h - 9) * 60 + m + s / 60; };
+const hhmm = v => { const t = Math.round(v), h = 9 + Math.floor(t / 60), m = t % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; };
+
+async function j(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(`${url} ${r.status}`); return r.json(); }
+
+async function loadDays() {
+  const days = await j(`/api/days?market=${S.market}`);
+  const t = today(); if (!days.includes(t)) days.unshift(t);
+  const sel = document.getElementById('day');
+  sel.innerHTML = days.map(d => `<option value="${d}">${d}${d === t ? ' (오늘)' : ''}</option>`).join('');
+  if (!S.day || !days.includes(S.day)) S.day = days[0];
+  sel.value = S.day;
+}
+
+async function loadPrevClose() {
+  const daily = await j(`/api/daily?market=${S.market}&limit=30`);
+  const prev = daily.filter(r => r.ts.slice(0, 10) < S.day).pop();
+  S.prevClose = prev ? prev.idx : null;
+}
+
+function kpi(id, v, d, digits = 0, unit = '억') {
+  document.getElementById('k-' + id).textContent = v == null ? '-' : fmt(v, digits) + (unit ? unit : '');
+  const el = document.getElementById('d-' + id); el.className = 'd ' + cls(d); el.textContent = d == null ? '' : `30초 ${sgn(d, digits)}${unit}`;
+}
+
+function render(data) {
+  const rows = data.rows, st = data.status;
+  const pill = document.getElementById('pill');
+  const isToday = S.day === today();
+  pill.className = 'pill' + (st.collecting && isToday ? ' on' : '');
+  pill.textContent = isToday ? (st.collecting ? '수집 중' : '장외') : '과거 조회';
+  document.getElementById('upd').textContent = st.last_ok ? `마지막 수집 ${st.last_ok.slice(11, 19)}` : '';
+  const eb = document.getElementById('err');
+  const errRecent = st.last_error && (!st.last_ok || st.last_error_at > st.last_ok);
+  eb.style.display = errRecent ? 'block' : 'none';
+  if (errRecent) eb.textContent = `수집 오류 (${st.last_error_at?.slice(11, 19)}): ${st.last_error}`;
+
+  const last = rows[rows.length - 1], prev = rows[rows.length - 2];
+  const d = k => last && prev && last[k] != null && prev[k] != null ? last[k] - prev[k] : null;
+  kpi('idx', last?.idx, d('idx'), 2, '');
+  if (last && S.prevClose) {
+    const ch = last.idx - S.prevClose, el = document.getElementById('d-idx');
+    el.className = 'd ' + cls(ch); el.textContent = `전일비 ${sgn(ch, 2)} (${sgn(ch / S.prevClose * 100, 2)}%)`;
+  }
+  kpi('frgn', last?.foreign_eok, d('foreign_eok'), 0);
+  kpi('inst', last?.inst_eok, d('inst_eok'), 0);
+  kpi('indiv', last?.indiv_eok, d('indiv_eok'), 0);
+
+  const pts = k => rows.filter(r => r[k] != null).map(r => ({ x: mins(r.ts), y: r[k] }));
+  const ds = [
+    { label: `${S.market === 'KOSPI' ? '코스피' : '코스닥'}지수`, data: pts('idx'), borderColor: getVar('--idx'), yAxisID: 'yIdx', borderWidth: 1.6 },
+    { label: '외국인', data: pts('foreign_eok'), borderColor: getVar('--frgn'), yAxisID: 'yFlow', borderWidth: 1.6 },
+    { label: '기관', data: pts('inst_eok'), borderColor: getVar('--inst'), yAxisID: 'yFlow', borderWidth: 1.6 },
+    { label: '개인', data: pts('indiv_eok'), borderColor: getVar('--indiv'), yAxisID: 'yFlow', borderWidth: 1.6 },
+  ];
+  if (S.prevClose) ds.push({ label: `전일종가 (${fmt(S.prevClose, 2)})`, data: [{ x: 0, y: S.prevClose }, { x: 390, y: S.prevClose }], borderColor: '#9ca3af', borderDash: [5, 4], yAxisID: 'yIdx', borderWidth: 1 });
+  ds.forEach(x => { x.pointRadius = 0; x.tension = 0; x.fill = false; });
+
+  if (!S.chart) {
+    S.chart = new Chart(document.getElementById('chart'), {
+      type: 'line', data: { datasets: ds },
+      options: {
+        animation: false, maintainAspectRatio: false, parsing: false, normalized: true,
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        scales: {
+          x: { type: 'linear', min: 0, max: 390, ticks: { stepSize: 60, callback: hhmm }, grid: { color: '#eef0f3' } },
+          yIdx: { position: 'left', title: { display: true, text: '지수' }, grid: { color: '#eef0f3' } },
+          yFlow: { position: 'right', title: { display: true, text: '억원' }, grid: { drawOnChartArea: false } },
+        },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: { callbacks: { title: it => hhmm(it[0].parsed.x), label: c => `${c.dataset.label}: ${fmt(c.parsed.y, c.dataset.yAxisID === 'yIdx' ? 2 : 0)}` } },
+        },
+      },
+    });
+  } else { S.chart.data.datasets = ds; S.chart.update('none'); }
+
+  const tb = document.getElementById('rows'); const out = [];
+  for (let i = rows.length - 1; i >= 0 && out.length < 400; i--) {
+    const r = rows[i], p = rows[i - 1];
+    const dd = k => p && r[k] != null && p[k] != null ? r[k] - p[k] : null;
+    out.push(`<tr><td>${r.ts.slice(11, 19)}</td><td>${fmt(r.idx, 2)}</td>
+      <td class="${cls(r.foreign_eok)}">${sgn(r.foreign_eok)}</td><td class="${cls(dd('foreign_eok'))}">${sgn(dd('foreign_eok'))}</td>
+      <td class="${cls(r.inst_eok)}">${sgn(r.inst_eok)}</td><td class="${cls(dd('inst_eok'))}">${sgn(dd('inst_eok'))}</td>
+      <td class="${cls(r.indiv_eok)}">${sgn(r.indiv_eok)}</td><td class="${cls(dd('indiv_eok'))}">${sgn(dd('indiv_eok'))}</td></tr>`);
+  }
+  tb.innerHTML = out.join('') || '<tr><td colspan="8" style="text-align:center;color:#6b7280">아직 수집된 데이터가 없습니다 (평일 09:00~15:35 자동 수집)</td></tr>';
+  document.getElementById('cnt').textContent = `${S.day} · ${rows.length}건`;
+  document.getElementById('csv').href = `/api/csv?market=${S.market}&date=${S.day}`;
+}
+const getVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+async function refresh() {
+  try { render(await j(`/api/day?market=${S.market}&date=${S.day}`)); }
+  catch (e) { const eb = document.getElementById('err'); eb.style.display = 'block'; eb.textContent = `서버 연결 실패: ${e.message}`; }
+}
+
+async function full() { await loadDays(); await loadPrevClose(); await refresh(); }
+
+document.querySelectorAll('.tab').forEach(b => b.onclick = async () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active')); b.classList.add('active');
+  S.market = b.dataset.m; S.day = null; if (S.chart) { S.chart.destroy(); S.chart = null; } await full();
+});
+document.getElementById('day').onchange = async e => { S.day = e.target.value; await loadPrevClose(); await refresh(); };
+document.getElementById('refresh').onclick = refresh;
+full();
+S.timer = setInterval(() => { if (S.day === today() && !document.hidden) refresh(); }, 30000);
+</script>
+</body>
+</html>
