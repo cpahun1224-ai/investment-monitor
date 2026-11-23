@@ -24,6 +24,7 @@ DATA_CSV = REPO_ROOT / "data" / "market_reader" / "daily.csv"
 OUT_DIR = REPO_ROOT / "frontend" / "public" / "market"
 FIELDS = ["date", "close", "foreign_net_eok", "inst_net_eok", "indiv_net_eok", "source"]
 HISTORY_CALENDAR_DAYS = 130  # 60일선 계산에 필요한 과거 거래일을 넉넉히
+CLOSE_CONFIRM = (15, 40)  # 이 시각(KST) 전에는 오늘 값이 장중 가격이라 종가로 쓰지 않는다
 
 
 def _num(x: str) -> Optional[float]:
@@ -107,10 +108,13 @@ def run(
     today: Optional[date] = None,
     csv_path: Path = DATA_CSV,
     out_dir: Path = OUT_DIR,
+    now: Optional[datetime] = None,
 ) -> bool:
     """수집 실패해도 저장된 CSV로 판정·출력은 한다. 수집 성공 여부를 돌려준다."""
     cfg = cfg or RuleConfig.from_env()
-    today = today or datetime.now(KST).date()
+    now = now or datetime.now(KST)
+    today = today or now.date()
+    before_close = (now.hour, now.minute) < CLOSE_CONFIRM and now.date() == today
     rows = load_csv(csv_path)
     collector = {"source": getattr(source, "name", "none"), "ok": None, "rows": 0, "error": None}
     if source is not None:
@@ -118,10 +122,15 @@ def run(
             new = source.fetch(cfg.start_date - timedelta(days=HISTORY_CALENDAR_DAYS), today)
             if not new:
                 raise RuntimeError("KRX가 빈 결과를 돌려줌(휴장·로그인 실패·접속 차단 가능)")
+            if before_close:  # 장중 실행: 오늘 행은 종가가 아니므로 버린다(수동 입력은 유지)
+                new = [r for r in new if r.date != today]
             rows = merge(rows, new)
             collector.update(ok=True, rows=len(new))
         except Exception as e:  # noqa: BLE001 — 실패 사유를 화면에 그대로 보여 준다
             collector.update(ok=False, error=f"{type(e).__name__}: {e}"[:300])
+    if before_close and today in rows and rows[today].source != "manual":
+        del rows[today]  # 이전 장중 실행이 남긴 오늘 값 정리
+    collector["intraday_skipped"] = before_close
     save_csv(rows, csv_path)
     summary, history = build_outputs(rows, cfg, collector)
     write_outputs(summary, history, out_dir)
