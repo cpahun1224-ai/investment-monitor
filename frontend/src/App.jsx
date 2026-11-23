@@ -9,11 +9,13 @@ import AddStockModal from './components/AddStockModal'
 import CashEditModal from './components/CashEditModal'
 import SignalsPanel from './components/SignalsPanel'
 import RebalancePanel from './components/RebalancePanel'
+import MarketGradePanel from './components/MarketGradePanel'
 import { formatKRW } from './utils'
-import { LayoutDashboard, List, Clock, Plus, RefreshCw, Edit2, Activity, BarChart3, Wifi, WifiOff, Bot } from 'lucide-react'
+import { LayoutDashboard, List, Clock, Plus, RefreshCw, Edit2, Activity, BarChart3, Wifi, WifiOff, Bot, Gauge } from 'lucide-react'
 
 const TABS = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
+  { id: 'market',    label: '시장 판독기', icon: Gauge },
   { id: 'guide',     label: '매수/매도 가이드', icon: Activity },
   { id: 'rebalance', label: '리밸런싱', icon: BarChart3 },
   { id: 'stocks',    label: '종목 관리', icon: List },
@@ -347,6 +349,9 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            {/* 시장 판독기 탭 */}
+            {tab === 'market' && <MarketGradePanel />}
 
             {/* 매수/매도 가이드 탭 */}
             {tab === 'guide' && (

@@ -1,0 +1,83 @@
+# 나만의 시장 판독기 — 평일 장 마감 후 KRX 종가·외국인 수급 수집 → 05-A 시장 등급 판정
+# 결과(JSON)를 저장소에 커밋하면 Vercel이 다시 배포해 '시장 판독기' 탭에 반영된다. 서버 불필요.
+name: market-reader
+
+on:
+  schedule:
+    # GitHub 예약 시각은 UTC. 07:10 UTC = 16:10 KST(잠정), 09:10 UTC = 18:10 KST(확정치로 덮어쓰기)
+    - cron: "10 7,9 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "export = KRX 수집+판정 / manual = 아래 값을 직접 입력"
+        type: choice
+        options: [export, manual]
+        default: export
+      date:
+        description: "manual: 날짜 (예: 2026-11-23)"
+        required: false
+      close:
+        description: "manual: 코스피 종가 (예: 4700.12)"
+        required: false
+      foreign_net_eok:
+        description: "manual: 외국인 현물 순매수, 억원 (예: -411). 모르면 비워 두기"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market-reader
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/market_reader/requirements.txt
+
+      - run: pip install -r backend/market_reader/requirements.txt
+
+      - name: 판독기 실행
+        id: reader
+        working-directory: backend
+        env:
+          KRX_ID: ${{ secrets.KRX_ID }}
+          KRX_PW: ${{ secrets.KRX_PW }}
+          MODE: ${{ inputs.mode || 'export' }}
+          IN_DATE: ${{ inputs.date }}
+          IN_CLOSE: ${{ inputs.close }}
+          IN_FOREIGN: ${{ inputs.foreign_net_eok }}
+        run: |
+          set +e
+          if [ "$MODE" = "manual" ]; then
+            python -m market_reader manual "$IN_DATE" "$IN_CLOSE" "$IN_FOREIGN"
+          else
+            python -m market_reader export
+          fi
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: 결과 커밋
+        run: |
+          git config user.name "market-reader-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/market_reader frontend/public/market
+          if git diff --cached --quiet; then
+            echo "변경 없음(휴장일 등)"
+          else
+            git commit -m "data: 시장 판독기 $(TZ=Asia/Seoul date +%F' '%H:%M) KST"
+            git push
+          fi
+
+      - name: 수집 실패 알림
+        if: steps.reader.outputs.exit != '0'
+        run: |
+          echo "::error::KRX 수집 또는 입력에 실패했습니다. 판정은 저장된 데이터로 갱신됐습니다. 로그를 확인하세요."
+          exit 1
