@@ -157,8 +157,13 @@ def api_committee(date: Optional[str] = None):
 
 
 def _market_summary(m: str, d: str) -> dict:
-    rows = store.day(m, d)
-    return summarize(rows, prev_close(m, d) if rows else None, m)
+    """한 시장의 요약이 실패해도 위원회 요약 전체가 500으로 죽지 않게 한다."""
+    try:
+        rows = store.day(m, d)
+        return summarize(rows, prev_close(m, d) if rows else None, m)
+    except Exception as e:  # noqa: BLE001
+        log.exception("위원회 요약 실패 %s %s", m, d)
+        return {"market": m, "status": "error", "error": f"{type(e).__name__}: {e}"[:300]}
 
 
 @app.get("/", dependencies=[Depends(auth)])

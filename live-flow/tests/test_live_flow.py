@@ -102,3 +102,19 @@ def test_committee_summary(tmp_path, monkeypatch):
     assert k["orange_cond4_foreign_2d"]["positive"] is False
     assert "09:30" in k["checkpoints"]
     assert k["flows"]["외국인"]["chg_60m"] == round(-798.0 - (-2648.0), 1)
+
+
+def test_summarize_survives_missing_index_early_session():
+    """2026-11-24 장 초반: KRX 지수 행이 비어 idx=None → /api/committee 500 회귀 방지."""
+    from live_flow.committee import summarize
+
+    rows = [
+        {"ts": "2026-11-24T09:00:30+09:00", "idx": None, "foreign_eok": 120.0, "inst_eok": -30.0, "indiv_eok": -90.0, "other_corp_eok": 0.0},
+        {"ts": "2026-11-24T09:12:30+09:00", "idx": None, "foreign_eok": 800.0, "inst_eok": -100.0, "indiv_eok": -700.0, "other_corp_eok": 0.0},
+    ]
+    pc = {"ts": "2026-11-23T15:35:30+09:00", "idx": 4713.65, "foreign_eok": -2469.4}
+    k = summarize(rows, pc, "KOSPI")
+    assert k["status"] == "ok" and "index_vs_prev_close" not in k
+    assert k["orange_cond4_foreign_2d"]["sum"] == round(-2469.4 + 800.0, 1)
+    rows.append({"ts": "2026-11-24T09:13:00+09:00", "idx": 4900.0, "foreign_eok": 850.0, "inst_eok": -90.0, "indiv_eok": -760.0, "other_corp_eok": 0.0})
+    assert summarize(rows, pc, "KOSPI")["index_vs_prev_close"]["chg"] == round(4900.0 - 4713.65, 2)

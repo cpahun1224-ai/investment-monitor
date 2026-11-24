@@ -47,10 +47,14 @@ def summarize(rows: list[dict], prev_close: Optional[dict], market: str) -> dict
         "latest": _slim(last),
         "checkpoints": {cp: _slim(_at(rows, cp)) for cp in CHECKPOINTS if _at(rows, cp)},
     }
-    # 지수
-    if prev_close and prev_close.get("idx"):
-        pc = prev_close["idx"]
-        out["index_vs_prev_close"] = {"prev_close": pc, "chg": round(last["idx"] - pc, 2), "pct": round((last["idx"] / pc - 1) * 100, 2)}
+    # 지수: 장 초반 KRX가 지수 행을 늦게 주면 idx가 비어 있을 수 있다 → 마지막으로 받은 지수 사용
+    idx_rows = [r for r in rows if r["idx"] is not None]
+    if not idx_rows:
+        out["index_note"] = "KRX 지수 값 아직 없음(수급만 수집 중)"
+    if prev_close and prev_close.get("idx") and idx_rows:
+        pc, cur_idx = prev_close["idx"], idx_rows[-1]["idx"]
+        out["index_vs_prev_close"] = {"prev_close": pc, "chg": round(cur_idx - pc, 2), "pct": round((cur_idx / pc - 1) * 100, 2),
+                                      "as_of": idx_rows[-1]["ts"][11:19]}
     # 투자자별: 장중 고점·저점, 최근 30·60분 변화, 방향 반전
     flows = {}
     for k, name in FLOW_KEYS.items():
