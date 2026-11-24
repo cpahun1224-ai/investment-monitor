@@ -1,29 +1,27 @@
 {
  "status": "ok",
- "as_of": "2026-11-23",
+ "as_of": "2026-11-24",
  "reference_low": 4911.28,
  "latest": {
-  "date": "2026-11-23",
-  "close": 4708.54,
-  "ma20": 5353.6875,
-  "ma60": 6149.418833333333,
-  "foreign_net_eok": -2564.6,
+  "date": "2026-11-24",
+  "close": 5006.03,
+  "ma20": 5322.072,
+  "ma60": 6119.382500000001,
+  "foreign_net_eok": 8046.0,
   "grade": "RED",
   "prev_grade": "RED",
-  "events": [
-   "CASH_STEP2: 기준 저점 4,911.28 종가 이탈 후 다음 날 회복 실패(종가 4,708.54) → RED 유지 + 현금 복구 2단계 상정"
-  ],
+  "events": [],
   "upgrade_target": "ORANGE",
   "upgrade_checks": [
    {
     "name": "① 종가 20일선 위",
     "ok": false,
-    "detail": "종가 4,708.54 / 20일선 5,353.69"
+    "detail": "종가 5,006.03 / 20일선 5,322.07"
    },
    {
     "name": "② 다음 거래일도 20일선 위",
     "ok": false,
-    "detail": "전일 4,869.96 / 전일 20일선 5,391.73"
+    "detail": "전일 4,708.54 / 전일 20일선 5,353.69"
    },
    {
     "name": "③ 기준 저점 위 저점 상승",
@@ -32,23 +30,22 @@
    },
    {
     "name": "④ 2거래일 외국인 순매수 합계 플러스",
-    "ok": false,
-    "detail": "합계 -13,520.60억원 (전일 -10,956.00 / 당일 -2,564.60)"
+    "ok": true,
+    "detail": "합계 5,481.40억원 (전일 -2,564.60 / 당일 8,046.00)"
    }
   ],
   "downgrade_watch": [
    {
     "name": "기준 저점 위 종가",
-    "ok": false,
-    "detail": "종가 4,708.54 / 기준 저점 4,911.28"
+    "ok": true,
+    "detail": "종가 5,006.03 / 기준 저점 4,911.28"
    }
   ],
   "budget_ratio": 0.0,
   "budget_scope": "매도만 가능"
  },
  "cio_agenda": [
-  "기준 저점 갱신 검토: 판정 기간 최저 종가 4,708.54(2026-11-23)가 현재 기준 4,911.28보다 낮음. 갱신 전까지 ORANGE 조건 ③은 충족 불가.",
-  "현금 복구 2단계(현금 20%) CIO 결정 필요"
+  "기준 저점 갱신 검토: 판정 기간 최저 종가 4,708.54(2026-11-23)가 현재 기준 4,911.28보다 낮음. 갱신 전까지 ORANGE 조건 ③은 충족 불가."
  ],
  "recent_events": [
   {
@@ -65,7 +62,7 @@
   }
  ],
  "data_quality": {
-  "rows": 94,
+  "rows": 95,
   "ma60_history_ok": true,
   "missing_foreign_days": [],
   "manual_days": []
@@ -73,9 +70,9 @@
  "collector": {
   "source": "pykrx",
   "ok": true,
-  "rows": 94,
+  "rows": 95,
   "error": null,
   "intraday_skipped": true
  },
- "generated_at": "2026-11-24T04:12:07+09:00"
+ "generated_at": "2026-11-25T03:50:59+09:00"
 }
