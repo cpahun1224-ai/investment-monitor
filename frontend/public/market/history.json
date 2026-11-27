@@ -384,5 +384,47 @@
   ],
   "budget_ratio": 0.0,
   "budget_scope": "매도만 가능"
+ },
+ {
+  "date": "2026-11-27",
+  "close": 4915.68,
+  "ma20": 5154.25,
+  "ma60": 6016.101333333334,
+  "foreign_net_eok": 11624.6,
+  "grade": "RED",
+  "prev_grade": "RED",
+  "events": [],
+  "upgrade_target": "ORANGE",
+  "upgrade_checks": [
+   {
+    "name": "① 종가 20일선 위",
+    "ok": false,
+    "detail": "종가 4,915.68 / 20일선 5,154.25"
+   },
+   {
+    "name": "② 다음 거래일도 20일선 위",
+    "ok": false,
+    "detail": "전일 4,711.21 / 전일 20일선 5,195.00"
+   },
+   {
+    "name": "③ 기준 저점 위 저점 상승",
+    "ok": false,
+    "detail": "2일 종가 기준 저점(4,911.28) 위: 아니오 / 최근 10일 최저 4,697.51 vs 이전 20일 최저 5,018.85"
+   },
+   {
+    "name": "④ 2거래일 외국인 순매수 합계 플러스",
+    "ok": true,
+    "detail": "합계 10,739.00억원 (전일 -885.60 / 당일 11,624.60)"
+   }
+  ],
+  "downgrade_watch": [
+   {
+    "name": "기준 저점 위 종가",
+    "ok": true,
+    "detail": "종가 4,915.68 / 기준 저점 4,911.28"
+   }
+  ],
+  "budget_ratio": 0.0,
+  "budget_scope": "매도만 가능"
  }
 ]
